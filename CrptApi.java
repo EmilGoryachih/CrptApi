@@ -17,7 +17,6 @@ public class CrptApi {
     private final int requestLimit;
     private final TimeUnit timeUnit;
 
-    // Конструктор с указанием лимита запросов и интервала времени
     public CrptApi(TimeUnit timeUnit, int requestLimit) {
         this.client = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
@@ -26,13 +25,10 @@ public class CrptApi {
         this.timeUnit = timeUnit;
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
-        // Сбрасываем счетчик запросов по истечении каждого интервала времени
         scheduler.scheduleAtFixedRate(() -> requestCount.set(0), 0, 1, timeUnit);
     }
 
-    // Метод для создания документа
     public String createDocument(Document document, String signature) throws IOException, InterruptedException {
-        // Блокируем выполнение, если лимит запросов достигнут
         if (requestCount.incrementAndGet() > requestLimit) {
             synchronized (this) {
                 while (requestCount.get() > requestLimit) {
@@ -41,10 +37,8 @@ public class CrptApi {
             }
         }
 
-        // Преобразуем документ в JSON
         String requestBody = objectMapper.writeValueAsString(document);
 
-        // Создаем запрос
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://ismp.crpt.ru/api/v3/lk/documents/create"))
                 .header("Content-Type", "application/json")
@@ -52,7 +46,6 @@ public class CrptApi {
                 .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
-        // Выполняем запрос и получаем ответ
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         synchronized (this) {
@@ -62,7 +55,6 @@ public class CrptApi {
         return response.body();
     }
 
-    // Класс для представления документа
     public static class Document {
         public Description description;
         public String doc_id;
@@ -78,12 +70,10 @@ public class CrptApi {
         public String reg_date;
         public String reg_number;
 
-        // Вложенный класс для описания
         public static class Description {
             public String participantInn;
         }
 
-        // Вложенный класс для продукта
         public static class Product {
             public String certificate_document;
             public String certificate_document_date;
@@ -97,12 +87,9 @@ public class CrptApi {
         }
     }
 
-    // Пример использования класса в методе main
     public static void main(String[] args) {
-        // Создаем экземпляр CrptApi с ограничением в 5 запросов в минуту
         CrptApi crptApi = new CrptApi(TimeUnit.MINUTES, 5);
 
-        // Создаем объект документа
         Document document = new Document();
         document.doc_id = "12345";
         document.doc_status = "NEW";
@@ -132,10 +119,8 @@ public class CrptApi {
         product.uitu_code = "91011";
         document.products = new Document.Product[]{product};
 
-        // Подпись для документа
         String signature = "sample_signature";
 
-        // Выполняем вызов метода createDocument
         try {
             String response = crptApi.createDocument(document, signature);
             System.out.println("Response: " + response);
